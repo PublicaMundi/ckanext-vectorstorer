@@ -27,25 +27,18 @@ class VectorStorer(SingletonPlugin):
         
 	
     def notify(self, entity, operation=None):
-	
-	if isinstance(entity, model.Package) and operation== model.DomainObjectOperation.new:
-	    self.package_name=entity.name
 	    
         if not isinstance(entity, model.Resource):
             return
-	 
 	if entity.format.lower()=='zip':
 	    
 	    user = get_action('get_site_user')({'model': model,
                                             'ignore_auth': True,
                                             'defer_commit': True}, {})
 	  
-	    #package_name= get_action('package_show_rest')({'model': model,
-                                            #'ignore_auth': True,
-                                            #'defer_commit': True}, {'id':str(entity.resource_group_id)})
 	    
 	    self._create_vector_storer_task(entity)
-	    entity.format="shapefile"
+	    #entity.format="shapefile"
 	else:
 	    return
 	
@@ -59,9 +52,10 @@ class VectorStorer(SingletonPlugin):
         user = get_action('get_site_user')({'model': model,
                                             'ignore_auth': True,
                                             'defer_commit': True}, {})
-
+	resource_package_id=resource.as_dict()['package_id']
+	
         context = json.dumps({
-	     'package_name': self.package_name,
+	    'package_id': resource_package_id,
             'site_url': self._get_site_url(),
             'apikey': user.get('apikey'),
             'site_user_apikey': user.get('apikey'),

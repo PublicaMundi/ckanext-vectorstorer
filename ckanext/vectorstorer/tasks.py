@@ -1,6 +1,5 @@
 import logging
 import zipfile
-import os.path
 import os
 import ckan.lib.helpers as h
 from ckan.lib.celery_app import celery 
@@ -12,14 +11,12 @@ import datetime
 from ckan.logic import get_action
 from ckan.model import package
 from ckan.lib.celery_app import celery
-from geoserver.catalog import Catalog
-from geoserver.store import DataStore
+
 import json
-from pylons import config
+
 from ckan.logic import action
 from vector import Shapefile
 import magic
-from ckan.logic.action.create import resource_create
 import shutil
 from db_helpers import DB
  
@@ -112,10 +109,10 @@ def publish_layer(geoserver_context,table_name):
 def add_wms_resource(context,resource_id,resource_name,wms_server,wms_layer):
     
     api_key=context['apikey'].encode('utf8')
-    package_name=context['package_name']
+    package_id=context['package_id']
      
     resource = {
-	  "package_id":unicode(package_name),
+	  "package_id":unicode(package_id),
 	  "url":wms_server+"?service=WMS&request=GetCapabilities",
 	  "format":u'WMS',
 	  "from_uuid":unicode(resource_id),
