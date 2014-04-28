@@ -23,7 +23,7 @@ Configuration
 
 **1.  Enabling Vector Storer**
 
-  To enable the Vector Storer Extension add this to ckan plugin in the config file :
+  To enable the Vector Storer Extension add this to ckan plugins in the config file :
  
         ckan.plugins = vectorstorer
 
