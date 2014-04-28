@@ -10,7 +10,6 @@ class Shapefile:
 	driver = ogr.GetDriverByName('ESRI Shapefile')
 	dataSource = driver.Open(shp_path, 0)  
 	
-	# Check to see if shapefile is found.
 	if dataSource is None:
 	    print 'Could not open %s' % (shp_path)
 	else:
@@ -22,14 +21,11 @@ class Shapefile:
 	    layerDefinition = layer.GetLayerDefn()
 	    self.Database.setup_connection(db_conn_params)
 	 
-	    if self.Database.check_if_table_exists(self.db_table_name):
-		print "exists"
-	    else:
-		fields=self.get_layer_fields(layerDefinition)
-		geom_name=self.get_geometry_name(layer.GetGeomType())
-		self.Database.create_table(self.db_table_name,fields,geom_name,srs)
-		self.write_to_db(layer,srs)
-		
+	    fields=self.get_layer_fields(layerDefinition)
+	    geom_name=self.get_geometry_name(layer)
+	    self.Database.create_table(self.db_table_name,fields,geom_name,srs)
+	    self.write_to_db(layer,srs,geom_name)
+    
     def getSRS(self,layer):
 	if not layer.GetSpatialRef()==None:
 	    prj=layer.GetSpatialRef().ExportToWkt()
@@ -76,26 +72,23 @@ class Shapefile:
 	
 	return fields
 			   
-    def get_geometry_name(self,GeomType):
-	
-	if GeomType==0:
-	    return "UNKNOWN"
-	elif GeomType==1:
-	    return "POINT"
-	elif GeomType==2:
-	    return "LINESTRING"
-	elif GeomType==3:
-	    return "POLYGON"
-	elif GeomType==4:
-	    return "MULTIPOINT"
-	elif GeomType==5:
-	    return "MULTILINESTRING"
-	elif GeomType==6:
-	    return "MULTIPOLYGON"
-	elif GeomType==7:
-	    return "GEOMETRYCOLLECTION"
+    def get_geometry_name(self,layer):
+	geometry_names=[]
+	for i in range(layer.GetFeatureCount()):
+	    feat=layer.GetFeature(i)
+	    feat_geom=feat.GetGeometryRef().GetGeometryName()
+	    if not feat_geom in geometry_names:
+		geometry_names.append(feat_geom)
+	geometry_name=None
+	for gname in geometry_names:
+	    if 'MULTI'in gname.upper():
+		geometry_name=gname
+	if not geometry_name is None:
+	    return geometry_name
+	else:
+	    return geometry_names[0]
 		
-    def write_to_db(self,layer,srs):
+    def write_to_db(self,layer,srs,layer_geom_name):
 	for i in range(layer.GetFeatureCount()):
 		feature_fields='%s,'%i
 		feat=layer.GetFeature(i)
@@ -109,12 +102,16 @@ class Shapefile:
 			    feature_fields+=str(feat.GetField(y))+','
 		    else:
 			feature_fields+='NULL,'
-			
-		self.Database.insert_to_table(self.db_table_name,feature_fields,feat.GetGeometryRef(),srs)
-	self.Database.create_spatial_index_and_vacuum(self.db_table_name)
+		convert_to_multi=self.needs_conversion_to_multi(feat,layer_geom_name)	
+		self.Database.insert_to_table(self.db_table_name,feature_fields,feat.GetGeometryRef(),convert_to_multi,srs)
+	self.Database.create_spatial_index(self.db_table_name)
 	self.Database.commit_and_close()
 		
-  
+    def needs_conversion_to_multi(self,feat,layer_geom_name):
+	if not feat.GetGeometryRef().GetGeometryName()==layer_geom_name:
+	   return True
+	else:
+	   return False
     
     def get_db_table_name(self):
 	return self.db_table_name

@@ -10,15 +10,9 @@ from ckan import model
 import json
 
 
-package_name=''
+
 class VectorStorer(SingletonPlugin):
-    resource_changed=False
-    dataset_new=False
-    package_name=''
-    """
-    Registers to be notified whenever CKAN resources are created or their URLs change,
-    and will create a new ckanext.archiver celery task to archive the resource.
-    """
+    
     implements(IConfigurable, inherit=True)
     implements(IDomainObjectModification, inherit=True)
     
@@ -31,14 +25,8 @@ class VectorStorer(SingletonPlugin):
         if not isinstance(entity, model.Resource):
             return
 	if entity.format.lower()=='zip':
-	    
-	    user = get_action('get_site_user')({'model': model,
-                                            'ignore_auth': True,
-                                            'defer_commit': True}, {})
-	  
-	    
+	   
 	    self._create_vector_storer_task(entity)
-	    #entity.format="shapefile"
 	else:
 	    return
 	
@@ -64,8 +52,7 @@ class VectorStorer(SingletonPlugin):
             
         })
 	geoserver_context = json.dumps({
-	    'geoserver_public_url': self.config['ckanext-vectorstorer.geoserver_public_url'],
-            'geoserver_local_url': self.config['ckanext-vectorstorer.geoserver_local_url'],
+	    'geoserver_url': self.config['ckanext-vectorstorer.geoserver_url'],
             'geoserver_workspace': self.config['ckanext-vectorstorer.geoserver_workspace'],
             'geoserver_admin': self.config['ckanext-vectorstorer.geoserver_admin'],
             'geoserver_password': self.config['ckanext-vectorstorer.geoserver_password']

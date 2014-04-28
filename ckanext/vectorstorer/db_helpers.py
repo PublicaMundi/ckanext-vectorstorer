@@ -23,14 +23,15 @@ class DB:
         #self.cursor.execute("ALTER TABLE \"%s\" ADD CONSTRAINT enforce_geometry_type CHECK (geometrytype(the_geom) = 'MULTIPOLYGON'::text OR geometrytype(the_geom) = 'POLYGON'::text OR the_geom IS NULL);"%(table_name))
         
     
-    def insert_to_table(self,table,fields,geometry_text,srs):
-	insert=("INSERT INTO \"%s\" VALUES (%s ST_GeomFromText('%s',%s));"%(table,fields,geometry_text,srs)) 
+    def insert_to_table(self,table,fields,geometry_text,convert_to_multi,srs):
+	if convert_to_multi:
+	    insert=("INSERT INTO \"%s\" VALUES (%s ST_Multi(ST_GeomFromText('%s',%s)));"%(table,fields,geometry_text,srs))
+	else:
+	    insert=("INSERT INTO \"%s\" VALUES (%s ST_GeomFromText('%s',%s));"%(table,fields,geometry_text,srs)) 
 	
 	self.cursor.execute(insert)
     
-    def create_spatial_index_and_vacuum(self,table):
-	#vacuum=("VACUUM \"%s\";"%(table)) 
-	#self.cursor.execute(vacuum)
+    def create_spatial_index(self,table):
 	indexing=("CREATE INDEX \"%s_the_geom_idx\" ON \"%s\" USING GIST(the_geom);"%(table,table)) 
 	self.cursor.execute(indexing)
 	
