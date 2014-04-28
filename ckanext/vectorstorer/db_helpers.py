@@ -20,8 +20,7 @@ class DB:
     def create_table(self,table_name,fin,geometry,srs):
         self.cursor.execute("CREATE TABLE \"%s\" (_id serial PRIMARY KEY%s);"%(table_name,fin))
         self.cursor.execute("SELECT AddGeometryColumn ('%s','the_geom',%s,'%s',2);"%(table_name,srs,geometry))
-        #self.cursor.execute("ALTER TABLE \"%s\" ADD CONSTRAINT enforce_geometry_type CHECK (geometrytype(the_geom) = 'MULTIPOLYGON'::text OR geometrytype(the_geom) = 'POLYGON'::text OR the_geom IS NULL);"%(table_name))
-        
+
     
     def insert_to_table(self,table,fields,geometry_text,convert_to_multi,srs):
 	if convert_to_multi:
