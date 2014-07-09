@@ -4,6 +4,7 @@ ckanext/vectorstorer/__init__.py
 ckanext/vectorstorer/celery_import.py
 ckanext/vectorstorer/db_helpers.py
 ckanext/vectorstorer/plugin.py
+ckanext/vectorstorer/settings.py
 ckanext/vectorstorer/tasks.py
 ckanext/vectorstorer/vector.py
 ckanext_vectorstorer.egg-info/PKG-INFO

@@ -17,17 +17,15 @@ class DB:
 	    return True
 	else:
 	    return False
-    def create_table(self,table_name,fin,geometry,srs):
+    def create_table(self,table_name,fin,geometry,srs,coordinate_dimension):
         self.cursor.execute("CREATE TABLE \"%s\" (_id serial PRIMARY KEY%s);"%(table_name,fin))
-        self.cursor.execute("SELECT AddGeometryColumn ('%s','the_geom',%s,'%s',2);"%(table_name,srs,geometry))
-
+        self.cursor.execute("SELECT AddGeometryColumn ('%s','the_geom',%s,'%s',%s);"%(table_name,srs,geometry,coordinate_dimension))        
     
     def insert_to_table(self,table,fields,geometry_text,convert_to_multi,srs):
 	if convert_to_multi:
 	    insert=("INSERT INTO \"%s\" VALUES (%s ST_Multi(ST_GeomFromText('%s',%s)));"%(table,fields,geometry_text,srs))
 	else:
 	    insert=("INSERT INTO \"%s\" VALUES (%s ST_GeomFromText('%s',%s));"%(table,fields,geometry_text,srs)) 
-	
 	self.cursor.execute(insert)
     
     def create_spatial_index(self,table):

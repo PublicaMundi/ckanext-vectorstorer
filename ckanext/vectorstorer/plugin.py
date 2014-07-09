@@ -1,34 +1,34 @@
 import ckan.lib.helpers as h
-from ckan.plugins import SingletonPlugin, implements, IDomainObjectModification,  IConfigurable, toolkit
+from ckan.plugins import SingletonPlugin, implements, IDomainObjectModification,  IConfigurable
 from ckan.lib.dictization.model_dictize import resource_dictize
 from ckan.logic import get_action
 from ckan.lib.celery_app import celery
-from vector import Shapefile
-from pylons import config
 from ckan.model.types import make_uuid
 from ckan import model
 import json
+from settings import SUPPORTED_DATA_FORMATS
 
 
 
 class VectorStorer(SingletonPlugin):
-    
+  
     implements(IConfigurable, inherit=True)
     implements(IDomainObjectModification, inherit=True)
     
+
     def configure(self, config):
         self.config=config
+
+   
         
-	
     def notify(self, entity, operation=None):
-	    
-        if not isinstance(entity, model.Resource):
-            return
-	if entity.format.lower()=='zip':
-	   
-	    self._create_vector_storer_task(entity)
-	else:
-	    return
+
+        if isinstance(entity, model.Resource):
+      
+	    if operation and entity.format.lower() in SUPPORTED_DATA_FORMATS:
+
+		self._create_vector_storer_task(entity)
+
 	
     def _get_site_url(self):
         try:
@@ -55,7 +55,8 @@ class VectorStorer(SingletonPlugin):
 	    'geoserver_url': self.config['ckanext-vectorstorer.geoserver_url'],
             'geoserver_workspace': self.config['ckanext-vectorstorer.geoserver_workspace'],
             'geoserver_admin': self.config['ckanext-vectorstorer.geoserver_admin'],
-            'geoserver_password': self.config['ckanext-vectorstorer.geoserver_password']
+            'geoserver_password': self.config['ckanext-vectorstorer.geoserver_password'],
+	    'geoserver_ckan_datastore': self.config['ckanext-vectorstorer.geoserver_ckan_datastore']
         })
         data = json.dumps(resource_dictize(resource, {'model': model}))
 
@@ -66,3 +67,4 @@ class VectorStorer(SingletonPlugin):
         celery.send_task("vectorstorer.upload",
                          args=[geoserver_context,context, data],
                          task_id=task_id)
+    
