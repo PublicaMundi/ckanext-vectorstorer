@@ -3,6 +3,7 @@ from db_helpers import DB
 import re
 from psycopg2.extensions import adapt
 import unicodedata as ud
+
 #Define GDAL drivers
 SHAPEFILE='ESRI Shapefile'
 KML='KML'

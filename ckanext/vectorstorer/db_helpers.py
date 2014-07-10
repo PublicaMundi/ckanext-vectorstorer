@@ -31,6 +31,10 @@ class DB:
     def create_spatial_index(self,table):
 	indexing=("CREATE INDEX \"%s_the_geom_idx\" ON \"%s\" USING GIST(the_geom);"%(table,table)) 
 	self.cursor.execute(indexing)
+    
+    def drop_table(self,table):
+	indexing=("DROP TABLE \"%s\";"%(table)) 
+	self.cursor.execute(indexing)
 	
     def commit_and_close(self):
 	self.conn.commit()

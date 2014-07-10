@@ -9,6 +9,7 @@ import shutil
 from db_helpers import DB
 from settings import TMP_FOLDER, ARCHIVE_FORMATS
 from pyunpack import Archive
+from geoserver.catalog import Catalog
     
 @celery.task(name="vectorstorer.upload", max_retries=24 * 7,
              default_retry_delay=3600)
@@ -101,6 +102,7 @@ def _handle_vector(gdal_driver,resource_tmp_folder,resource,db_conn_params,conte
 	vector_layer.open_file(gdal_driver,file_path,resource['id'],db_conn_params)
     
     wms_server,wms_layer=_publish_layer(geoserver_context,resource['id'])
+    _update_resource_metadata(context,resource)
     _add_wms_resource(context,resource['id'],resource['name'],wms_server,wms_layer)
 
 
@@ -145,6 +147,15 @@ def _publish_layer(geoserver_context,table_name):
     wms_server=geoserver_url+"/wms"
     wms_layer=geoserver_workspace+":"+table_name.lower()
     return wms_server,wms_layer
+
+def _update_resource_metadata(context,resource):
+    api_key=context['apikey'].encode('utf8')
+    site_url=context['site_url']
+    resource['vectorstorer_resource']=True
+    data_string = urllib.quote(json.dumps(resource))
+    request = urllib2.Request(site_url+'api/action/resource_update')
+    request.add_header('Authorization', api_key)
+    urllib2.urlopen(request, data_string)
     
 def _add_wms_resource(context,resource_id,resource_name,wms_server,wms_layer):
     
@@ -157,6 +168,7 @@ def _add_wms_resource(context,resource_id,resource_name,wms_server,wms_layer):
 	  "url":wms_server+"?service=WMS&request=GetCapabilities",
 	  "format":u'WMS',
 	  "from_uuid":unicode(resource_id),
+	  'vectorstorer_resource':True,
 	  "wms_server":unicode(wms_server) ,
 	  "wms_layer":unicode(wms_layer),
 	  "name":resource_name.split('.')[0]+" WMS Layer",}
@@ -166,6 +178,47 @@ def _add_wms_resource(context,resource_id,resource_name,wms_server,wms_layer):
     urllib2.urlopen(request, data_string)
     
     
+@celery.task(name="vectorstorer.delete", max_retries=24 * 7,
+             default_retry_delay=3600)
+def vectorstorer_delete( geoserver_cont,cont,data):
+    
+    resource = json.loads(data)
+    context=json.loads(cont)
+    geoserver_context=json.loads(geoserver_cont)
+    db_conn_params=context['db_params']
+    if resource:
+	_delete_from_datastore(resource,db_conn_params,context)
+	_unpublish_from_geoserver(resource['id'],geoserver_context)
+	_delete_vectorstorer_resources(resource,context)
+    else:
+       	_unpublish_from_geoserver(context['vector_storer_resources_ids'][0],geoserver_context)
 
 
-   
+def _delete_from_datastore(resource,db_conn_params,context):
+  
+    Database=DB()
+    Database.setup_connection(db_conn_params)
+    Database.drop_table(resource['id'])
+    Database.commit_and_close()
+    
+def _unpublish_from_geoserver(resource_id,geoserver_context):
+    geoserver_url= geoserver_context['geoserver_url']
+    geoserver_admin= geoserver_context['geoserver_admin']
+    geoserver_password= geoserver_context['geoserver_password']
+    cat = Catalog(geoserver_url+"/rest", username=geoserver_admin, password=geoserver_password)
+    layer = cat.get_layer(resource_id.lower())
+    cat.delete(layer)
+    
+def _delete_vectorstorer_resources(resource,context):
+    resources_ids_to_delete=context['vector_storer_resources_ids']
+    api_key=context['apikey'].encode('utf8')
+    site_url=context['site_url']
+    for res_id in resources_ids_to_delete:
+     
+	resource = {
+	    "id":res_id}
+	data_string = urllib.quote(json.dumps(resource))
+	request = urllib2.Request(site_url+'api/action/resource_delete')
+	request.add_header('Authorization', api_key)
+	urllib2.urlopen(request, data_string)
+      
