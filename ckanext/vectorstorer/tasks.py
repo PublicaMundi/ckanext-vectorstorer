@@ -214,6 +214,7 @@ def _unpublish_from_geoserver(resource_id,geoserver_context):
     cat = Catalog(geoserver_url+"/rest", username=geoserver_admin, password=geoserver_password)
     layer = cat.get_layer(resource_id.lower())
     cat.delete(layer)
+    cat.reload()
     
 def _delete_vectorstorer_resources(resource,context):
     resources_ids_to_delete=context['vector_storer_resources_ids']
