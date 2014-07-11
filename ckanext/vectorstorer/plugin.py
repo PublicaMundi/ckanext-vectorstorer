@@ -85,7 +85,8 @@ class VectorStorer(SingletonPlugin):
 		if entity.format.lower() in SUPPORTED_DATA_FORMATS:
 		    #Vector file was updated
 		    
-		    self._update_vector_storer_task(entity)
+		    #self._update_vector_storer_task(entity)
+		    pass
 		    
 		else :
 		    #Resource File updated but not in supported formats
@@ -143,15 +144,7 @@ class VectorStorer(SingletonPlugin):
         celery.send_task("vectorstorer.upload",
                          args=[geoserver_context,context, data],
                          task_id=task_id)
-    
-    def _update_vector_storer_task(self, resource):
-	
-	#First deleted from datastorer the current vector resource and delete-unpublish child resources
-        self._delete_vector_storer_task(resource.as_dict())
-        
-        #Secondly handle the new vector resource (create datastore table), create child resources and publish it to geoserver
-	self._create_vector_storer_task(resource)
-	
+
     def _delete_vector_storer_task(self, resource):
 	
 	user=self._get_site_user()
