@@ -20,7 +20,7 @@ class StyleController(BaseController):
 	if operation:
 	    self._get_context(id,resource_id)
 	    if operation.lower()=='show':
-		print ""
+		pass
 	    elif operation.lower()=='upload':
 		sld_file_param = request.POST['sld_file']
 		try:
