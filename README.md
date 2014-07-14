@@ -13,7 +13,7 @@ Installation
 **1.  Extension installation**
 
     $ pip install -e git+http://github.com/PublicaMundi/ckanext-vectorstorer.git#egg=ckanext-vectorstorer
-    $ pip install -r ./pyenv/src/ckan/requirements.txt
+    $ pip install -r ./pyenv/src/ckanext-vectorstorer/requirements.txt
 
 **2.  Install required packages**
 
