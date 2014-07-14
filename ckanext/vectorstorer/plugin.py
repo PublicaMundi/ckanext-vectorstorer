@@ -1,5 +1,5 @@
 import ckan.lib.helpers as h
-from ckan.plugins import SingletonPlugin, implements, IDomainObjectModification,  IConfigurable, toolkit, IResourceUrlChange
+from ckan.plugins import SingletonPlugin, implements, IDomainObjectModification,  IConfigurable, toolkit, IResourceUrlChange, IRoutes, IConfigurer
 from ckan.lib.dictization.model_dictize import resource_dictize
 from ckan.logic import get_action
 from ckan.lib.celery_app import celery
@@ -21,7 +21,8 @@ class VectorStorer(SingletonPlugin):
     resource_delete_action= None
     resource_update_action=None
     
-    
+    implements(IRoutes, inherit=True)
+    implements(IConfigurer, inherit=True)
     implements(IConfigurable, inherit=True)
     implements(IResourceUrlChange)
     implements(IDomainObjectModification, inherit=True)
@@ -66,7 +67,18 @@ class VectorStorer(SingletonPlugin):
                 return res_update
 	    logic._actions['resource_update'] = new_resource_update
             self.resource_update_action=new_resource_update
-        
+    
+    def before_map(self, map):
+	map.connect('{action}', '/dataset/{id}/resource/{resource_id}/{action}/{operation}',
+            controller='ckanext.vectorstorer.controllers.style:StyleController',
+            action='{action}')
+	return map
+
+    def update_config(self, config):
+
+        toolkit.add_public_directory(config, 'public')
+        toolkit.add_template_directory(config, 'templates')
+        toolkit.add_resource('public', 'ckanext-vectorstorer')    
     def notify(self, entity, operation=None):
 
         if isinstance(entity, model.resource.Resource):

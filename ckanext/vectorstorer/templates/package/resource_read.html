@@ -1,0 +1,9 @@
+{% ckan_extends %}
+
+{% block resource_actions_inner %}
+    {{super()}}
+    {% if res.format=="wms" and res.vectorstorer_resource %}
+	<li>{% link_for _('Edit Style'), controller='ckanext.vectorstorer.controllers.style:StyleController', action='edit_current_sld', id=pkg.name, resource_id=res.id,operation='show', class_='btn', icon='magic' %}</li>
+    {% endif %}
+{% endblock %}
+

@@ -7,6 +7,8 @@ ckanext/vectorstorer/plugin.py
 ckanext/vectorstorer/settings.py
 ckanext/vectorstorer/tasks.py
 ckanext/vectorstorer/vector.py
+ckanext/vectorstorer/controllers/__init__.py
+ckanext/vectorstorer/controllers/style.py
 ckanext_vectorstorer.egg-info/PKG-INFO
 ckanext_vectorstorer.egg-info/SOURCES.txt
 ckanext_vectorstorer.egg-info/dependency_links.txt
