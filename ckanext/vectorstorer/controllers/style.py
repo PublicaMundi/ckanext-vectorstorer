@@ -84,7 +84,8 @@ class StyleController(BaseController):
 
     def _submit_sld(self,sld_body):
 	try:
-	    cat = Catalog("http://localhost:8983/geoserver/rest")
+	    geoserver_url=config['ckanext-vectorstorer.geoserver_url']
+            cat = Catalog(geoserver_url+"/rest")
 	    layer = cat.get_layer(c.layer_id)
 	    default_style=layer._get_default_style()
 	    if default_style.name ==c.layer_id:
