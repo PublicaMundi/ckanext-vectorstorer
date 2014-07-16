@@ -20,7 +20,9 @@ def vectorstorer_upload( geoserver_cont,cont,data):
     geoserver_context=json.loads(geoserver_cont)
     db_conn_params=context['db_params']
     _handle_resource(resource,db_conn_params,context,geoserver_context)
-
+    wms_server,wms_layer=_publish_layer(geoserver_context, resource)
+    _update_resource_metadata(context,resource)
+    _add_wms_resource(context, resource, wms_server, wms_layer)
 	
 
 def _handle_resource(resource,db_conn_params,context,geoserver_context):
@@ -56,8 +58,6 @@ def _handle_resource(resource,db_conn_params,context,geoserver_context):
     
     #Delete temp folders created
     _delete_temp(resource_tmp_folder)
-      
-      
       
 def _download_resource(resource):
   
@@ -100,11 +100,6 @@ def _handle_vector(gdal_driver,resource_tmp_folder,resource,db_conn_params,conte
 	file_path=_get_tmp_file_path(resource_tmp_folder,resource)
 	vector_layer=vector.Vector()
 	vector_layer.open_file(gdal_driver,file_path,resource['id'],db_conn_params)
-    
-    wms_server,wms_layer=_publish_layer(geoserver_context, resource)
-    _update_resource_metadata(context,resource)
-    _add_wms_resource(context, resource, wms_server, wms_layer)
-
 
 def _delete_temp(res_tmp_folder):
     shutil.rmtree(res_tmp_folder)
@@ -184,6 +179,58 @@ def _add_wms_resource(context, parent_resource, wms_server, wms_layer):
     request.add_header('Authorization', api_key)
     urllib2.urlopen(request, data_string)
     
+@celery.task(name="vectorstorer.update", max_retries=24 * 7,
+             default_retry_delay=3600)
+def vectorstorer_update( geoserver_cont,cont,data):
+    
+    resource = json.loads(data)
+    context=json.loads(cont)
+    geoserver_context=json.loads(geoserver_cont)
+    db_conn_params=context['db_params']
+    
+    child_resources=context['child_resources']
+    
+    '''If resource has child resources (WMS) unpublish from geoserver.Else the 
+    WMS resource has already been deleted and the layer unpublished from geoserver'''
+    
+    if len(child_resources)>0:
+	_unpublish_from_geoserver(resource['id'],geoserver_context)
+    _delete_from_datastore(resource,db_conn_params,context)
+    _handle_resource(resource,db_conn_params,context,geoserver_context)
+    wms_server,wms_layer=_publish_layer(geoserver_context, resource)
+   
+    
+    #If resource has child resources (WMS) update current wms resource
+    if len(child_resources)>0:
+	_update_wms_resource(context,resource,child_resources)
+	
+    #If resource hasn't child resources (WMS) create a wms resource
+    else:
+	_add_wms_resource(context, resource, wms_server, wms_layer)
+    
+def _update_wms_resource(context,resource,child_resources):
+    api_key=context['apikey'].encode('utf8')
+    site_url=context['site_url']
+    
+    for child in child_resources:
+	
+	#Get the child resource
+	child_res = {"id":child}
+	data_string = urllib.quote(json.dumps(child_res))
+	request = urllib2.Request(site_url+'api/action/resource_show')
+	request.add_header('Authorization', api_key)
+	response=urllib2.urlopen(request, data_string)
+	child_res=json.loads(response.read())['result']
+	
+	#Update child resource Name and description
+	child_res['name']=resource['name'].split('.')[0]+" WMS Layer"
+	child_res['description']=resource['description']
+	data_string = urllib.quote(json.dumps(child_res))
+	request = urllib2.Request(site_url+'api/action/resource_update')
+	request.add_header('Authorization', api_key)
+	urllib2.urlopen(request, data_string)
+	
+	
     
 @celery.task(name="vectorstorer.delete", max_retries=24 * 7,
              default_retry_delay=3600)
@@ -214,6 +261,7 @@ def _unpublish_from_geoserver(resource_id,geoserver_context):
     cat = Catalog(geoserver_url+"/rest", username=geoserver_admin, password=geoserver_password)
     layer = cat.get_layer(resource_id.lower())
     cat.delete(layer)
+    cat.reload()
     
 def _delete_vectorstorer_resources(resource,context):
     resources_ids_to_delete=context['vector_storer_resources_ids']

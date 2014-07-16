@@ -97,8 +97,7 @@ class VectorStorer(SingletonPlugin):
 		if entity.format.lower() in SUPPORTED_DATA_FORMATS:
 		    #Vector file was updated
 		    
-		    #self._update_vector_storer_task(entity)
-		    pass
+		    self._update_vector_storer_task(entity)
 		    
 		else :
 		    #Resource File updated but not in supported formats
@@ -133,6 +132,24 @@ class VectorStorer(SingletonPlugin):
         })
 	return geoserver_context
       
+    def _get_child_resources(self,resource):
+	user=self._get_site_user()
+	
+	vector_storer_resources_ids=[]
+	
+	temp_context = {'model': ckan.model,'user': user.get('name')}
+	current_package=get_action('package_show')(temp_context,{'id':resource['package_id']})
+	resources= current_package['resources']
+	    
+	#Check if the deleted vectorstorer resource has child resources 
+	for res in resources:
+	    if res['format']==self.WMS_FORMAT and res['from_uuid']==resource['id']:
+		    
+		#Child resource was found so append it to a list, in order to be deleted
+		vector_storer_resources_ids.append(res['id'])
+	return vector_storer_resources_ids
+	 
+        
     def _create_vector_storer_task(self, resource):
         user=self._get_site_user()
 	resource_package_id=resource.as_dict()['package_id']
@@ -156,7 +173,32 @@ class VectorStorer(SingletonPlugin):
         celery.send_task("vectorstorer.upload",
                          args=[geoserver_context,context, data],
                          task_id=task_id)
+    
+    def _update_vector_storer_task(self, resource):
+        user=self._get_site_user()
+	resource_package_id=resource.as_dict()['package_id']
+	child_resources=self._get_child_resources(resource.as_dict())
+        context = json.dumps({
+	    'child_resources':child_resources,
+	    'package_id': resource_package_id,
+            'site_url': self._get_site_url(),
+            'apikey': user.get('apikey'),
+            'site_user_apikey': user.get('apikey'),
+            'user': user.get('name'),
+            'db_params':self.config['ckan.datastore.write_url']
+            
+        })
+	geoserver_context = self._get_geoserver_context()
+        data = json.dumps(resource_dictize(resource, {'model': model}))
 
+        task_id = make_uuid()
+     
+	
+        
+        celery.send_task("vectorstorer.update",
+                         args=[geoserver_context,context, data],
+                         task_id=task_id)
+	
     def _delete_vector_storer_task(self, resource):
 	
 	user=self._get_site_user()
@@ -176,18 +218,7 @@ class VectorStorer(SingletonPlugin):
 	    parent_vector_resource=resource
 	    #Get current package resources
 	    resource_package_id=resource['package_id']
-	    temp_context = {'model': ckan.model,'user': user.get('name')}
-	    current_package=get_action('package_show')(temp_context,{'id':resource_package_id})
-	    resources= current_package['resources']
-	    
-	    #Check if the deleted vectorstorer resource has child resources 
-	    for res in resources:
-		if res['format']==self.WMS_FORMAT and res['from_uuid']==resource['id']:
-		    
-		    #Child resource was found so append it to a list, in order to be deleted
-		    vector_storer_resources_ids.append(res['id'])
-	 
-        
+	    vector_storer_resources_ids=self._get_child_resources(resource)
 
 	context = json.dumps({
 	    'vector_storer_resources_ids': vector_storer_resources_ids,
