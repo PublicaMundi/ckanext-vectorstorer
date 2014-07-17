@@ -11,6 +11,8 @@ GEOJSON='GeoJSON'
 GML='GML'
 
 class Vector:
+    _check_for_conversion=False
+
     default_epsg=4326
     Database=DB()
     gdal_driver=None
@@ -28,7 +30,7 @@ class Vector:
 	else:
 	    layer = dataSource.GetLayer()
 	    layer_name=layer.GetName()
-	    
+	   
 	    #Get Spatial Reference System
 	    srs=self._get_SRS(layer)
 	    
@@ -40,12 +42,19 @@ class Vector:
 	    
 	    fields=self.get_layer_fields(layerDefinition)
 	    geom_name=self.get_geometry_name(layer)
-	    feat= layer.GetFeature(0)
-	    coordinate_dimension=feat.GetGeometryRef().GetCoordinateDimension()
+	    
+	    layer.ResetReading()
+	    feat= layer.GetNextFeature()
+	    
+	    feat_geom=feat.GetGeometryRef()
+	    coordinate_dimension=feat_geom.GetCoordinateDimension()
+	    
+	    layer.ResetReading()
 	    self.Database.create_table(self.db_table_name,fields,geom_name,srs,coordinate_dimension)
 	    self.write_to_db(layer,srs,geom_name)
     
     def _get_SRS(self,layer):
+	
 	if not layer.GetSpatialRef()==None:
 	    prj=layer.GetSpatialRef().ExportToWkt()
 	    srs_osr=osr.SpatialReference()
@@ -93,8 +102,12 @@ class Vector:
 			   
     def get_geometry_name(self,layer):
 	geometry_names=[]
-	for i in range(layer.GetFeatureCount()):
-	    feat=layer.GetFeature(i)
+	
+	for feat in layer:
+	    
+	    if not feat:
+	       continue
+	    
 	    feat_geom=feat.GetGeometryRef().GetGeometryName()
 	    if not feat_geom in geometry_names:
 		geometry_names.append(feat_geom)
@@ -106,13 +119,22 @@ class Vector:
 	  
 	elif len(geometry_names)==2:
 	    #Two geometry types were found for the layer
-	    
+	    multi_geom=None
+	    simple_geom=None
 	    for gname in geometry_names:
-		if 'MULTI'in gname.upper():
-		    geometry_name=gname
+		gname_upp=gname.upper()
+		
+		if 'MULTI'in gname_upp:
+		    multi_geom=gname_upp
+		else:
+		    simple_geom=gname_upp
 		    
-	    if not geometry_name is None:
-		return geometry_name
+	    if multi_geom and simple_geom:
+	      
+		if multi_geom.split('MULTI')[1]==simple_geom:
+		    self._check_for_conversion=True
+		    geometry_name=multi_geom
+		    return geometry_name
 	    else:
 		return 'GEOMETRY'
 	elif len(geometry_names)>2:
@@ -120,26 +142,30 @@ class Vector:
 	    return 'GEOMETRY'
 	  
     def write_to_db(self,layer,srs,layer_geom_name):
-	for i in range(layer.GetFeatureCount()):
-		feature_fields='%s,'%i
-		feat=layer.GetFeature(i)
-		for y in range(feat.GetFieldCount()):
-		  
-		    if not feat.GetField(y)==None:
-		  	if layer.GetLayerDefn().GetFieldDefn(y).GetType()in [4,9]:
-			  
-			    field_value= (feat.GetField(y)).decode('utf-8').encode('utf-8')
-			    feature_fields+=str(adapt(field_value)).decode('utf-8')+','
-			    
-			else:
-			    feature_fields+=str(feat.GetField(y))+','
+	i=0
+	for feat in layer:
+	    feature_fields='%s,'%i
+	    #feat=layer.GetFeature(i)
+	    i=i+1
+	    if not feat:
+		continue
+	    for y in range(feat.GetFieldCount()):
+	      
+		if not feat.GetField(y)==None:
+		    if layer.GetLayerDefn().GetFieldDefn(y).GetType()in [4,9]:
+		      
+			field_value= (feat.GetField(y)).decode('utf-8').encode('utf-8')
+			feature_fields+=str(adapt(field_value)).decode('utf-8')+','
+			
 		    else:
-			feature_fields+='NULL,'
-		convert_to_multi=False
-		
-		if self.gdal_driver==SHAPEFILE:
-		    convert_to_multi=self.needs_conversion_to_multi(feat,layer_geom_name)	
-		self.Database.insert_to_table(self.db_table_name,feature_fields,feat.GetGeometryRef(),convert_to_multi,srs)
+			feature_fields+=str(feat.GetField(y))+','
+		else:
+		    feature_fields+='NULL,'
+	    convert_to_multi=False
+	    
+	    if self._check_for_conversion:
+		convert_to_multi=self.needs_conversion_to_multi(feat,layer_geom_name)	
+	    self.Database.insert_to_table(self.db_table_name,feature_fields,feat.GetGeometryRef(),convert_to_multi,srs)
 	
 	self.Database.create_spatial_index(self.db_table_name)
 	self.Database.commit_and_close()
