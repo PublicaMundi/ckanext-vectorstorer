@@ -10,7 +10,14 @@ from db_helpers import DB
 from settings import TMP_FOLDER, ARCHIVE_FORMATS
 from pyunpack import Archive
 from geoserver.catalog import Catalog
-    
+from resources import *
+from ckanext.vectorstorer import settings
+#Define Actions
+RESOURCE_CREATE_ACTION='resource_create'
+RESOURCE_UPDATE_ACTION='resource_update'
+RESOURCE_DELETE_ACTION='resource_delete'
+
+
 @celery.task(name="vectorstorer.upload", max_retries=24 * 7,
              default_retry_delay=3600)
 def vectorstorer_upload( geoserver_cont,cont,data):
@@ -20,42 +27,56 @@ def vectorstorer_upload( geoserver_cont,cont,data):
     geoserver_context=json.loads(geoserver_cont)
     db_conn_params=context['db_params']
     _handle_resource(resource,db_conn_params,context,geoserver_context)
-    wms_server,wms_layer=_publish_layer(geoserver_context, resource)
-    _update_resource_metadata(context,resource)
-    _add_wms_resource(context, resource, wms_server, wms_layer)
+    #wms_server,wms_layer=_publish_layer(geoserver_context, resource)
+    #_update_resource_metadata(context,resource)
+    #_add_wms_resource(context, resource, wms_server, wms_layer)
 	
 
 def _handle_resource(resource,db_conn_params,context,geoserver_context):
     resource_tmp_folder=_download_resource(resource)
     resource_format=resource['format'].lower()
+    
+    _GDAL_DRIVER=None
+    _file_path=None
+    
     if resource_format in ARCHIVE_FORMATS:
-	try:
-	    tmp_archive=_get_tmp_file_path(resource_tmp_folder,resource)
-	    Archive(tmp_archive).extractall(resource_tmp_folder)
-	    
-	    _handle_vector(vector.SHAPEFILE,resource_tmp_folder,resource,db_conn_params,context,geoserver_context)
-	except Exception,error:
-	    raise error
-	    pass
-	
+	tmp_archive=_get_tmp_file_path(resource_tmp_folder,resource)
+	Archive(tmp_archive).extractall(resource_tmp_folder)
+	is_shp,_file_path=_is_shapefile(resource_tmp_folder)
+	if is_shp:
+	    _GDAL_DRIVER=vector.SHAPEFILE	
     elif resource_format=='kml':
-	try:
-	    _handle_vector(vector.KML,resource_tmp_folder,resource,db_conn_params,context,geoserver_context)
-	except Exception,error:
-	    raise error
-    
+	_GDAL_DRIVER=vector.KML
     elif resource_format=='gml':
-	try:
-	    _handle_vector(vector.GML,resource_tmp_folder,resource,db_conn_params,context,geoserver_context)
-	except Exception,error:
-	    raise error
-    elif resource_format=='geojson':
-	try:
-	    _handle_vector(vector.GEOJSON,resource_tmp_folder,resource,db_conn_params,context,geoserver_context)
-	except Exception,error:
-	    raise error
-	    pass
+	_GDAL_DRIVER=vector.GML
+    elif resource_format=='gpx':
+	_GDAL_DRIVER=vector.GPX
+    elif resource_format=='geojson' or resource_format=='json':
+	_GDAL_DRIVER=vector.GEOJSON
+    elif resource_format=='sqlite':
+	_GDAL_DRIVER=vector.SQLITE
+    elif resource_format=='geopackage' or resource_format=='gpkg': 
+	_GDAL_DRIVER=vector.GEOPACKAGE
+    elif resource_format=='csv':
+	_GDAL_DRIVER=vector.CSV      
+    elif resource_format=='xls' or resource_format=='xlsx':
+	_GDAL_DRIVER=vector.XLS
     
+    if not _GDAL_DRIVER==vector.SHAPEFILE:
+	_file_path=_get_tmp_file_path(resource_tmp_folder,resource)
+    
+    
+    
+    
+    _encoding='utf-8'
+    
+    if _GDAL_DRIVER:
+	_vector=vector.Vector(_GDAL_DRIVER,_file_path,_encoding, db_conn_params)
+	layer_count=_vector.get_layer_count()
+	for layer_idx in range(0,layer_count):
+	     
+	    _handle_vector(_vector, layer_idx, resource, context, geoserver_context)
+	 
     #Delete temp folders created
     _delete_temp(resource_tmp_folder)
       
@@ -85,22 +106,34 @@ def _get_tmp_file_path(resource_tmp_folder,resource):
     file_path=resource_tmp_folder+resource_file_name
     return file_path
     
-def _handle_vector(gdal_driver,resource_tmp_folder,resource,db_conn_params,context,geoserver_context):
-    
-    #For ESRI Shapefile
-    if gdal_driver==vector.SHAPEFILE:
-	is_shp,shp_path=_is_shapefile(resource_tmp_folder)
-	if is_shp:
-	    vector_layer=vector.Vector()
-	    vector_layer.open_file(gdal_driver,shp_path,resource['id'],db_conn_params)
-    
-    #For KML, GML and GeoJSON
-    else:
-	#Get the file path 
-	file_path=_get_tmp_file_path(resource_tmp_folder,resource)
-	vector_layer=vector.Vector()
-	vector_layer.open_file(gdal_driver,file_path,resource['id'],db_conn_params)
+def _handle_vector(_vector, layer_idx, resource, context, geoserver_context):
+    layer = _vector.get_layer(layer_idx)
+    if layer and layer.GetFeatureCount()>0:
+	layer_name=layer.GetName()
+	geom_name=_vector.get_geometry_name(layer)
+	
+	created_db_table_resource=_add_db_table_resource(context,resource,geom_name,layer_name)
+	
+	layer = _vector.get_layer(layer_idx)
+	_vector.handle_layer(layer, geom_name, created_db_table_resource['id'].lower())
 
+	wms_server,wms_layer=_publish_layer(geoserver_context, created_db_table_resource)
+
+	_add_wms_resource(context,layer_name, created_db_table_resource, wms_server, wms_layer)
+  
+
+def _add_db_table_resource(context,resource,geom_name,layer_name):
+    db_table_resource=DBTableResource(context['package_id'], layer_name,resource['description'], resource['id'], resource['url'], geom_name)
+    db_res_as_dict=db_table_resource.get_as_dict()
+    created_db_table_resource=_api_resource_action(context,db_res_as_dict,RESOURCE_CREATE_ACTION)
+    return created_db_table_resource
+
+def _add_wms_resource(context, layer_name, parent_resource, wms_server, wms_layer):
+    wms_resource=WMSResource(context['package_id'], layer_name, parent_resource['description'], parent_resource['id'], wms_server,wms_layer)
+    wms_res_as_dict=wms_resource.get_as_dict()
+    created_wms_resource=_api_resource_action(context,wms_res_as_dict,RESOURCE_CREATE_ACTION)
+    return created_wms_resource
+    
 def _delete_temp(res_tmp_folder):
     shutil.rmtree(res_tmp_folder)
 
@@ -148,6 +181,16 @@ def _publish_layer(geoserver_context,resource):
     
     return wms_server,wms_layer
 
+def _api_resource_action(context,resource,action):
+    api_key=context['apikey'].encode('utf8')
+    site_url=context['site_url']
+    data_string = urllib.quote(json.dumps(resource))
+    request = urllib2.Request(site_url+'api/action/'+action)
+    request.add_header('Authorization', api_key)
+    response=urllib2.urlopen(request, data_string)
+    created_resource=json.loads(response.read())['result']
+    return created_resource
+
 def _update_resource_metadata(context,resource):
     api_key=context['apikey'].encode('utf8')
     site_url=context['site_url']
@@ -157,27 +200,7 @@ def _update_resource_metadata(context,resource):
     request.add_header('Authorization', api_key)
     urllib2.urlopen(request, data_string)
     
-def _add_wms_resource(context, parent_resource, wms_server, wms_layer):
-    
-    api_key=context['apikey'].encode('utf8')
-    site_url=context['site_url']
-    package_id=context['package_id']
-     
-    resource = {
-	  "package_id":unicode(package_id),
-	  "url":wms_server+"?service=WMS&request=GetCapabilities",
-	  "format":u'WMS',
-	  "from_uuid":unicode(parent_resource['id']),
-	  'vectorstorer_resource':True,
-	  "wms_server":unicode(wms_server) ,
-	  "wms_layer":unicode(wms_layer),
-	  "name":parent_resource['name'].split('.')[0]+" WMS Layer",
-	  "description":parent_resource['description']}
-    
-    data_string = urllib.quote(json.dumps(resource))
-    request = urllib2.Request(site_url+'api/action/resource_create')
-    request.add_header('Authorization', api_key)
-    urllib2.urlopen(request, data_string)
+
     
 @celery.task(name="vectorstorer.update", max_retries=24 * 7,
              default_retry_delay=3600)
@@ -188,49 +211,18 @@ def vectorstorer_update( geoserver_cont,cont,data):
     geoserver_context=json.loads(geoserver_cont)
     db_conn_params=context['db_params']
     
-    child_resources=context['child_resources']
+    resource_ids=context['resource_list_to_delete']
     
     '''If resource has child resources (WMS) unpublish from geoserver.Else the 
     WMS resource has already been deleted and the layer unpublished from geoserver'''
     
-    if len(child_resources)>0:
-	_unpublish_from_geoserver(resource['id'],geoserver_context)
-    _delete_from_datastore(resource,db_conn_params,context)
+    if len(resource_ids)>0:
+	for res_id in resource_ids:
+	    res = {
+	    "id":res_id}
+	    _api_resource_action(context,res,RESOURCE_DELETE_ACTION)
+    
     _handle_resource(resource,db_conn_params,context,geoserver_context)
-    wms_server,wms_layer=_publish_layer(geoserver_context, resource)
-   
-    
-    #If resource has child resources (WMS) update current wms resource
-    if len(child_resources)>0:
-	_update_wms_resource(context,resource,child_resources)
-	
-    #If resource hasn't child resources (WMS) create a wms resource
-    else:
-	_add_wms_resource(context, resource, wms_server, wms_layer)
-    
-def _update_wms_resource(context,resource,child_resources):
-    api_key=context['apikey'].encode('utf8')
-    site_url=context['site_url']
-    
-    for child in child_resources:
-	
-	#Get the child resource
-	child_res = {"id":child}
-	data_string = urllib.quote(json.dumps(child_res))
-	request = urllib2.Request(site_url+'api/action/resource_show')
-	request.add_header('Authorization', api_key)
-	response=urllib2.urlopen(request, data_string)
-	child_res=json.loads(response.read())['result']
-	
-	#Update child resource Name and description
-	child_res['name']=resource['name'].split('.')[0]+" WMS Layer"
-	child_res['description']=resource['description']
-	data_string = urllib.quote(json.dumps(child_res))
-	request = urllib2.Request(site_url+'api/action/resource_update')
-	request.add_header('Authorization', api_key)
-	urllib2.urlopen(request, data_string)
-	
-	
     
 @celery.task(name="vectorstorer.delete", max_retries=24 * 7,
              default_retry_delay=3600)
@@ -240,19 +232,27 @@ def vectorstorer_delete( geoserver_cont,cont,data):
     context=json.loads(cont)
     geoserver_context=json.loads(geoserver_cont)
     db_conn_params=context['db_params']
-    if resource:
-	_delete_from_datastore(resource,db_conn_params,context)
-	_delete_vectorstorer_resources(resource,context)
-    else:
-       	_unpublish_from_geoserver(context['vector_storer_resources_ids'][0],geoserver_context)
+    
+    if resource.has_key('format'):
+	if resource['format']==settings.DB_TABLE_FORMAT :
+	    _delete_from_datastore(resource['id'],db_conn_params,context)
+	  
+	elif resource['format']==settings.WMS_FORMAT :
+	    _unpublish_from_geoserver(resource['parent_resource_id'],geoserver_context)
+    resource_ids=context['resource_list_to_delete']  
+    if resource_ids:
+	resource_ids=context['resource_list_to_delete']
+	
+	for res_id in resource_ids:
+	    res = {
+	    "id":res_id}
+	    _api_resource_action(context,res,RESOURCE_DELETE_ACTION)
 
-
-def _delete_from_datastore(resource,db_conn_params,context):
+def _delete_from_datastore(resource_id,db_conn_params,context):
   
-    Database=DB()
-    Database.setup_connection(db_conn_params)
-    Database.drop_table(resource['id'])
-    Database.commit_and_close()
+    _db=DB(db_conn_params)
+    _db.drop_table(resource_id)
+    _db.commit_and_close()
     
 def _unpublish_from_geoserver(resource_id,geoserver_context):
     geoserver_url= geoserver_context['geoserver_url']

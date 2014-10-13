@@ -1,0 +1,12 @@
+{% if res.datastore_active %}
+ 
+  {% set export_url = h.url_for(controller='ckanext.vectorstorer.controllers.export:ExportController', action='snippet', snippet_path='export.html', id=pkg_id, resource_id=res.id) %}
+
+  
+   
+ <link rel="stylesheet" href="http://code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css">
+ <a id="export-button" class="btn" data-module="export-dialog"  data-module-export_snippet_url="{{ export_url }}"><i class="icon-beaker icon-large"></i> {{ _('Export') }}</a>
+ 
+
+{% endif %}
+

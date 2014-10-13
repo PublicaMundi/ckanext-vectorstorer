@@ -7,6 +7,7 @@ from ckan.lib.base import BaseController, c, g, request, \
 
 from geoserver.catalog import UploadError
 from ckan.logic import *
+from ckan.common import _
 _check_access = check_access
 
 NoFileSelected='No XML file was selected.'
@@ -72,7 +73,7 @@ class StyleController(BaseController):
             c.pkg = context['package']
             c.pkg_dict = c.package
             if c.resource.has_key('vectorstorer_resource') and c.resource['format'].lower()=='wms':
-                   c.layer_id=c.resource['from_uuid']
+                   c.layer_id=c.resource['parent_resource_id']
 	    else:
 		raise NotVectorStorerWMS
         except NotVectorStorerWMS:

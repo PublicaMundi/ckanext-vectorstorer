@@ -2,7 +2,7 @@ import psycopg2
 import urlparse  
 class DB:    
   
-    def setup_connection(self,db_conn_params):
+    def __init__(self,db_conn_params):
 	result = urlparse.urlparse(db_conn_params)
 	user = result.username
 	password = result.password

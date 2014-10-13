@@ -1,9 +1,20 @@
 {% ckan_extends %}
-
+ 
 {% block resource_actions_inner %}
     {{super()}}
+    
+     {% if res.vectorstorer_resource and res.format=='db_table' %}
+	 
+	 
+	  
+	   <li>{% link_for _('Export'), controller='ckanext.vectorstorer.controllers.export:ExportController', action='export',operation='index', id=pkg.name, resource_id=res.id, class_='btn', icon='magic' %}</li>
+	 	   
+      
+
+    {% endif %}
     {% if res.format=="wms" and res.vectorstorer_resource %}
 	<li>{% link_for _('Edit Style'), controller='ckanext.vectorstorer.controllers.style:StyleController', action='edit_current_sld', id=pkg.name, resource_id=res.id,operation='show', class_='btn', icon='magic' %}</li>
     {% endif %}
+
 {% endblock %}
 
