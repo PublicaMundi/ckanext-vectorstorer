@@ -23,8 +23,9 @@ Install GDAL libraries and Python bindings (at system-level):
 
 **2.  Install CKAN extension**
 
-    $ pip install -e git+http://github.com/PublicaMundi/ckanext-vectorstorer.git#egg=ckanext-vectorstorer
-    $ pip install -r ./pyenv/src/ckanext-vectorstorer/requirements.txt
+    $ git clone https://github.com/PublicaMundi/ckanext-vectorstorer.git
+    $ python setup.py develop
+    $ pip install -r pip-requirements.txt
 
 
 Configuration
@@ -47,6 +48,7 @@ Configuration
         ckanext-vectorstorer.geoserver_admin= (e.g. admin)
         ckanext-vectorstorer.geoserver_password= (e.g. geoserver)
         ckanext-vectorstorer.geoserver_ckan_datastore=(e.g. ckan_datastore_default)
+        ckanext-vectorstorer.gdal_folder= (e.g. /usr/lib/python2.7/dist-packages)
 
   Geoserver workspace and datastore have to be created in advance. The datastore must be connected to the CKAN datastore database.
 
