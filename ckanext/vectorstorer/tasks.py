@@ -7,11 +7,11 @@ import json
 import vector
 import shutil
 from db_helpers import DB
-from settings import TMP_FOLDER, ARCHIVE_FORMATS
 from pyunpack import Archive
 from geoserver.catalog import Catalog
 from resources import *
 from ckanext.vectorstorer import settings
+
 #Define Actions
 RESOURCE_CREATE_ACTION='resource_create'
 RESOURCE_UPDATE_ACTION='resource_update'
@@ -39,7 +39,7 @@ def _handle_resource(resource,db_conn_params,context,geoserver_context):
     _GDAL_DRIVER=None
     _file_path=None
     
-    if resource_format in ARCHIVE_FORMATS:
+    if resource_format in settings.ARCHIVE_FORMATS:
 	tmp_archive=_get_tmp_file_path(resource_tmp_folder,resource)
 	Archive(tmp_archive).extractall(resource_tmp_folder)
 	is_shp,_file_path=_is_shapefile(resource_tmp_folder)
@@ -83,7 +83,7 @@ def _handle_resource(resource,db_conn_params,context,geoserver_context):
 def _download_resource(resource):
   
     #Create temp folder for the resource
-    resource_tmp_folder=TMP_FOLDER+resource['id']+'/'
+    resource_tmp_folder=settings.TMP_FOLDER+resource['id']+'/'
     os.makedirs(resource_tmp_folder)
     
     #Get resource URL and resource file name
@@ -166,7 +166,10 @@ def _publish_layer(geoserver_context,resource):
     geoserver_ckan_datastore= geoserver_context['geoserver_ckan_datastore']
     
     resource_id=resource['id'].lower()
-    resource_name=resource['name'].split('.')[0]
+    resource_name=resource['name']
+    
+    if DBTableResource.name_extention in resource_name:
+	resource_name=resource_name.replace(DBTableResource.name_extention,'')
     resource_description=resource['description']
     
     url=geoserver_url+"/rest/workspaces/"+geoserver_workspace+"/datastores/"+geoserver_ckan_datastore+"/featuretypes"
@@ -220,7 +223,10 @@ def vectorstorer_update( geoserver_cont,cont,data):
 	for res_id in resource_ids:
 	    res = {
 	    "id":res_id}
-	    _api_resource_action(context,res,RESOURCE_DELETE_ACTION)
+	    try:
+		_api_resource_action(context,res,RESOURCE_DELETE_ACTION)
+	    except urllib2.HTTPError as e:
+		print e.reason 
     
     _handle_resource(resource,db_conn_params,context,geoserver_context)
     

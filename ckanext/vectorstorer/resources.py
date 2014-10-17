@@ -1,8 +1,8 @@
 from urlparse import urlparse, urljoin
+
 class WMSResource:
-  
+    name_extention=" WMS Layer"
     _get_capabilities_url="?service=WMS&request=GetCapabilities"
-  
     _name= None
     _description= None
     _package_id= None
@@ -15,7 +15,7 @@ class WMSResource:
     
     def __init__(self,package_id, name, description, parent_resource_id, wms_server,wms_layer):
 	self._package_id=package_id
-	self._name=name + " WMS Layer"
+	self._name=name + self.name_extention
 	self._description=description
 	base_url = urlparse(wms_server)
 
@@ -52,7 +52,7 @@ class DBTableResource:
     
     def __init__(self,package_id, name, description, parent_resource_id, url, geometry):
 	self._package_id=package_id
-	self._name=name + name_extention
+	self._name=name + self.name_extention
 	self._description=description
 	self._url=url
 	self._parent_resource_id=parent_resource_id
