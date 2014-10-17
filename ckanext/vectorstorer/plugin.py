@@ -11,8 +11,8 @@ import json
 import ckan
 from ckanext.vectorstorer import settings
 from db_helpers import DB
-
 from pylons import config
+
 class VectorStorer(SingletonPlugin):
     STATE_DELETED='deleted'
     WMS_FORMAT='wms'
@@ -80,9 +80,6 @@ class VectorStorer(SingletonPlugin):
 	map.connect('{action}', '/dataset/{id}/resource/{resource_id}/{action}/{operation}',
             controller='ckanext.vectorstorer.controllers.export:ExportController',
             action='{action}',operation='{operation}')
-	#map.connect('export_file', '/dataset/{id}/resource/{resource_id}/export/export_file',
-            #controller='ckanext.vectorstorer.controllers.export:ExportController',
-            #action='export')
 	map.connect('{action}', '/api/search_epsg',
             controller='ckanext.vectorstorer.controllers.export:ExportController',
             action='search_epsg')

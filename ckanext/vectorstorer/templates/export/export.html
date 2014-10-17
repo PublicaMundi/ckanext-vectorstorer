@@ -1,7 +1,7 @@
 {% extends "package/resource_read.html" %}
 
 {% set res = c.resource %}
-
+{% set gdal_drivers = c.gdal_drv_list %}
 {% block breadcrumb_content %}
 {% if pkg %}
     {% set dataset = pkg.title or pkg.name %}
@@ -57,13 +57,15 @@
 	    
 	    <select id="field-export_format" type="text">
 		{% for format in gdal_export_formats %}
-
+		    {% if (format['get_param'].upper() in gdal_drivers) or (format['display_name'].upper() in gdal_drivers)%}
+	
+    
 		    <option value="{{ format['get_param'] }}">
 		    
 			{{format['display_name'] }}
 		    
 		    </option>
-					    
+		    {% endif %}
 		{% endfor %}
 
 	    </select>

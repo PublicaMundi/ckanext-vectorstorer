@@ -11,10 +11,12 @@ import shutil
 
 from ckanext.vectorstorer.settings import ogr, osr
 from ckanext.vectorstorer import settings
+from ckanext.vectorstorer.resources import DBTableResource
 import json
 import urllib2
 
 from ckan.common import _
+
 
 _check_access = check_access
 
@@ -26,6 +28,7 @@ class ExportController(BaseController):
     def export(self,id, resource_id,operation):
 	if operation=="index":
 	    self._get_context(id, resource_id)
+	    c.gdal_drv_list=self._get_gdal_driver_list()
 	    return render('export/export.html')
 	elif operation=="export_file":
 	    return self._export_file(id,resource_id)
@@ -74,6 +77,8 @@ class ExportController(BaseController):
         tmp_folder = self._create_temp_export_folder()
 
         resource_name = self._get_resource_name(resource_id)
+        if DBTableResource.name_extention in resource_name:
+	    resource_name=resource_name.replace(DBTableResource.name_extention,'')
 
         export_datasource, export_layer = self._create_export_datasource(tmp_folder, resource_name, export_format,
                                                                          export_projection, postgis_layer.GetGeomType())
@@ -171,6 +176,7 @@ class ExportController(BaseController):
         databaseServer, databaseName, databaseUser, databasePW)
 
         layer_name = str(resource_id.lower())
+       
         conn = ogr.Open(connString)
 
         layer = conn.GetLayer(layer_name)
@@ -184,7 +190,7 @@ class ExportController(BaseController):
         return random_folder_name
 
     def _create_export_datasource(self, tmp_folder, layer_name, export_format, export_projection, layer_geom_type):
-
+	
         GDAL_Driver = self._get_GDAL_Driver_by_export_format(export_format)
 
         driver = ogr.GetDriverByName(GDAL_Driver)
@@ -268,6 +274,14 @@ class ExportController(BaseController):
 
         return fapp(request.environ, self.start_response)
 
+    def _get_gdal_driver_list(self):
+	gdal_drvs=[]
+	drv_count=ogr.GetDriverCount()
+	for drv_idx in range(drv_count):
+	    gdal_drv=ogr.GetDriver(drv_idx)
+	    gdal_drvs.append(gdal_drv.GetName().upper())
+	return gdal_drvs
+	    
     def _get_resource_name(self, resource_id):
 
         context = {'model': model, 'session': model.Session,

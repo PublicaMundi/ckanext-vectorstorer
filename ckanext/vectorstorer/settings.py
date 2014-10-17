@@ -22,9 +22,7 @@ SUPPORTED_DATA_FORMATS = [
     'geojson',
     'sqlite',
     'geopackage',
-    'gpkg',
-    'db_table'
-]
+    'gpkg']
 
 ARCHIVE_FORMATS=[
     'zip',

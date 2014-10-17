@@ -40,7 +40,7 @@ class WMSResource:
 	return resource
 	
 class DBTableResource:
-    
+    name_extention=" Data Preview"
     _name= None
     _description= None
     _package_id= None
@@ -52,7 +52,7 @@ class DBTableResource:
     
     def __init__(self,package_id, name, description, parent_resource_id, url, geometry):
 	self._package_id=package_id
-	self._name=name + " Data Preview"
+	self._name=name + name_extention
 	self._description=description
 	self._url=url
 	self._parent_resource_id=parent_resource_id
