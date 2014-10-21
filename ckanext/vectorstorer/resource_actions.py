@@ -34,19 +34,23 @@ def _get_geoserver_context():
 	})
 	return geoserver_context
     
-def create_vector_storer_task(resource):
+def create_vector_storer_task(resource,extra_params=None):
 	user = _get_site_user()
 	resource_package_id=resource.as_dict()['package_id']
-	
-	context = json.dumps({
+	cont={
 	    'package_id': resource_package_id,
 	    'site_url': _get_site_url(),
 	    'apikey': user.get('apikey'),
 	    'site_user_apikey': user.get('apikey'),
 	    'user': user.get('name'),
-	    'db_params':config['ckan.datastore.write_url']
-	    
-	})
+	    'db_params':config['ckan.datastore.write_url']   
+	}
+
+	if extra_params:
+	    for key, value in extra_params.iteritems():
+		cont[key] = value
+	context = json.dumps(cont)
+	
 	geoserver_context=_get_geoserver_context()
 	data = json.dumps(resource_dictize(resource, {'model': model}))
 
@@ -166,11 +170,11 @@ def _get_child_resources(parent_resource ):
 def pkg_delete_vector_storer_task(package):
 	user = _get_site_user()
 	context = {'model': ckan.model, 'session': ckan.model.Session,'user': user.get('name')}
-	resources = package.as_dict()['resources']
+	resources = package['resources']
 	
 	'''Get all vector resources in the deleted dataset which are related to vectorstorer in order to delete them from datastore and unpublish from geoserver.'''
 	for res in resources:
 	    
 	    if res.has_key('vectorstorer_resource') and res['format'] == settings.DB_TABLE_FORMAT:
-		res['package_id'] = package.as_dict()['id']
+		res['package_id'] = package['id']
 		delete_vector_storer_task(res, True)

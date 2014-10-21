@@ -168,7 +168,7 @@ class Vector:
 		if not feat.GetField(y)==None:
 		    if layer.GetLayerDefn().GetFieldDefn(y).GetType()in [4,9,10,11]:
 		      
-			field_value= (feat.GetField(y)).decode(self.encoding).encode(db_encoding)
+			field_value= (feat.GetField(y)).decode(self.encoding,'ignore').encode(db_encoding)
 			feature_fields+=adapt(field_value).getquoted().decode(db_encoding)+','
 			
 		    else:
