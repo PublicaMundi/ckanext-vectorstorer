@@ -63,34 +63,20 @@ def _handle_resource(resource,db_conn_params,context,geoserver_context):
 	_GDAL_DRIVER=vector.XLS
     
     if not _GDAL_DRIVER==vector.SHAPEFILE:
-	_file_path=_get_tmp_file_path(resource_tmp_folder,resource)
-    
-    
-    
+	_file_path=_get_tmp_file_path(resource_tmp_folder,resource)  
     
     if context.has_key('encoding'):
 	_encoding = context['encoding']
     else:
 	_encoding = 'utf-8'
     
-    _layer_idx_selected=[]
-    if context.has_key('layer_idxs'):
-	_layer_idxs=context['layer_idxs'].split(',')
-	print len(_layer_idxs)
-	print "dsadsad %s"% _layer_idxs[0]
-	    
-	for idx in _layer_idxs:
-	    _layer_idx_selected.append(int(idx))
-    
     if _GDAL_DRIVER:
 	_vector=vector.Vector(_GDAL_DRIVER,_file_path,_encoding, db_conn_params)
 	layer_count=_vector.get_layer_count()
+	
 	for layer_idx in range(0,layer_count):
-	     if len(_layer_idx_selected) >0:
-		if layer_idx in _layer_idx_selected:
-		    _handle_vector(_vector, layer_idx, resource, context, geoserver_context)
-	     else:
-		_handle_vector(_vector, layer_idx, resource, context, geoserver_context)
+	     
+	    _handle_vector(_vector, layer_idx, resource, context, geoserver_context)
 	 
     #Delete temp folders created
     _delete_temp(resource_tmp_folder)
