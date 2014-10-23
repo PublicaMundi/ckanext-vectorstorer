@@ -48,7 +48,7 @@ class Vector:
     def handle_layer(self,layer,geom_name,table_name):
 
       #Get Spatial Reference System
-      srs=self._get_SRS(layer)
+      srs=self.get_SRS(layer)
       
       #Set Database table name
       featureCount = layer.GetFeatureCount()
@@ -67,7 +67,7 @@ class Vector:
       self._db.create_table(table_name,fields,geom_name,srs,coordinate_dimension)
       self.write_to_db(table_name,layer,srs,geom_name)
 
-    def _get_SRS(self,layer):
+    def get_SRS(self,layer):
 	
 	if not layer.GetSpatialRef()==None:
 	    prj=layer.GetSpatialRef().ExportToWkt()

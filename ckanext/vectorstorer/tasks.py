@@ -112,13 +112,16 @@ def _handle_vector(_vector, layer_idx, resource, context, geoserver_context):
     if layer and layer.GetFeatureCount()>0:
 	layer_name=layer.GetName()
 	geom_name=_vector.get_geometry_name(layer)
-	
+	srs_epsg = int(_vector.get_SRS(layer))
+	spatial_ref = settings.osr.SpatialReference()
+	spatial_ref.ImportFromEPSG(srs_epsg)
+	srs_wkt=spatial_ref.ExportToWkt()
 	created_db_table_resource=_add_db_table_resource(context,resource,geom_name,layer_name)
 	
 	layer = _vector.get_layer(layer_idx)
 	_vector.handle_layer(layer, geom_name, created_db_table_resource['id'].lower())
 
-	wms_server,wms_layer=_publish_layer(geoserver_context, created_db_table_resource)
+	wms_server,wms_layer=_publish_layer(geoserver_context, created_db_table_resource,srs_wkt)
 
 	_add_wms_resource(context,layer_name, created_db_table_resource, wms_server, wms_layer)
   
@@ -159,7 +162,7 @@ def _is_shapefile(res_folder_path):
      
       
          
-def _publish_layer(geoserver_context,resource):
+def _publish_layer(geoserver_context,resource,srs_wkt):
     geoserver_url= geoserver_context['geoserver_url']
     geoserver_workspace= geoserver_context['geoserver_workspace']
     geoserver_admin= geoserver_context['geoserver_admin']
@@ -176,7 +179,7 @@ def _publish_layer(geoserver_context,resource):
     url=geoserver_url+"/rest/workspaces/"+geoserver_workspace+"/datastores/"+geoserver_ckan_datastore+"/featuretypes"
     req = urllib2.Request(url)
     req.add_header("Content-type", "text/xml")
-    req.add_data("<featureType><name>%s</name><title>%s</title><abstract>%s</abstract></featureType>"%(resource_id,resource_name,resource_description))
+    req.add_data("<featureType><name>%s</name><title>%s</title><abstract>%s</abstract><nativeCRS>%s</nativeCRS></featureType>"%(resource_id,resource_name,resource_description,srs_wkt))
     req.add_header('Authorization',"Basic " + (geoserver_admin+':'+geoserver_password).encode("base64").rstrip())
  
     res = urllib2.urlopen(req)
