@@ -1,18 +1,24 @@
 import codecs
-
-from ckan.lib.base import BaseController, c , request , abort
-from ckan.logic import get_action ,check_access, model,NotFound,NotAuthorized
+import json
+from ckan.lib.base import BaseController, c, request, abort
+from ckan.logic import get_action, check_access, model, NotFound, NotAuthorized
 import ckan
 from ckan.common import _
 from ckanext.vectorstorer.settings import osr
 from ckanext.vectorstorer import resource_actions
-
-
+from ckan.lib.celery_app import celery
+from ckan.model.types import make_uuid
+from ckan.lib.dictization.model_dictize import resource_dictize
 _check_access = check_access
-  
+
 class VectorController(BaseController):
-    '''VectorController will be used to publish vector data at postgis and geoserver'''
-    
+    """VectorController will be used to publish vector data at postgis and geoserver"""
+
+    def resource_identified(self):
+        task_id = request.params.get('id', u'')
+        result = celery.AsyncResult(task_id)
+        return result.get()
+        
     def publish(self):
 
 	resource_id = request.params.get('resource_id',u'')
