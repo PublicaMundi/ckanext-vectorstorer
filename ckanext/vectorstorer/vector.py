@@ -125,13 +125,18 @@ class Vector:
 
     def get_sample_data(self, layer):
         feat_data = {}
-        feat = layer.GetNextFeature()
-        for y in range(feat.GetFieldCount()):
-            layerDefinition = layer.GetLayerDefn()
-            field_name = layerDefinition.GetFieldDefn(y).GetName()
-            feat_data[field_name] = feat.GetField(y)
+        layer.ResetReading()
+        for feat in layer:
+	    if not feat:
+		continue
 
-        return feat_data
+	    for y in range(feat.GetFieldCount()):
+		layerDefinition = layer.GetLayerDefn()
+		field_name = layerDefinition.GetFieldDefn(y).GetName()
+		feat_data[field_name] = feat.GetField(y)
+
+	    break
+	return feat_data
 
     def write_to_db(self, table_name, layer, srs, layer_geom_name):
         i = 0

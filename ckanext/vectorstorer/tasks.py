@@ -25,7 +25,7 @@ def identify_resource(data):
 def _identify(resource):
     resource_tmp_folder = _download_resource(resource)
     json_result = {}
-    gdal_driver, file_path = _get_gdalDRV_filepath(resource, resource_tmp_folder)
+    gdal_driver, file_path,prj_exists = _get_gdalDRV_filepath(resource, resource_tmp_folder)
     if gdal_driver:
         json_result['gdal_driver'] = gdal_driver
         _vector = vector.Vector(gdal_driver, file_path, None, None)
@@ -59,14 +59,13 @@ def vectorstorer_upload(geoserver_cont, cont, data):
 
 def _handle_resource(resource, db_conn_params, context, geoserver_context):
     resource_tmp_folder = _download_resource(resource)
-    gdal_driver, file_path = _get_gdalDRV_filepath(resource, resource_tmp_folder)
+    gdal_driver, file_path ,prj_exists = _get_gdalDRV_filepath(resource, resource_tmp_folder)
     if context.has_key('encoding'):
         _encoding = context['encoding']
     else:
         _encoding = 'utf-8'
     _selected_layers = None
     if context.has_key('selected_layers'):
-        print len(context['selected_layers'])
         if len(context['selected_layers']) > 0:
             _selected_layers = context['selected_layers']
     if gdal_driver:
@@ -89,7 +88,7 @@ def _get_gdalDRV_filepath(resource, resource_tmp_folder):
     if resource_format in settings.ARCHIVE_FORMATS:
         tmp_archive = _get_tmp_file_path(resource_tmp_folder, resource)
         Archive(tmp_archive).extractall(resource_tmp_folder)
-        is_shp, _file_path = _is_shapefile(resource_tmp_folder)
+        is_shp, _file_path, prj_exists = _is_shapefile(resource_tmp_folder)
         if is_shp:
             _gdal_driver = vector.SHAPEFILE
     elif resource_format == 'kml':
@@ -110,7 +109,8 @@ def _get_gdalDRV_filepath(resource, resource_tmp_folder):
         _gdal_driver = vector.XLS
     if not _gdal_driver == vector.SHAPEFILE:
         _file_path = _get_tmp_file_path(resource_tmp_folder, resource)
-    return (_gdal_driver, _file_path)
+
+    return _gdal_driver, _file_path ,prj_exists
 
 
 def _download_resource(resource):

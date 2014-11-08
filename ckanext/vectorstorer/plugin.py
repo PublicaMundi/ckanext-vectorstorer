@@ -7,6 +7,8 @@ from ckanext.vectorstorer import settings
 from ckanext.vectorstorer import resource_actions
 from pylons import config
 
+from ckanext.vectorstorer.model.resource_identify import setup as setup_model
+
 
 class VectorStorer(SingletonPlugin):
     STATE_DELETED='deleted'
@@ -22,7 +24,7 @@ class VectorStorer(SingletonPlugin):
     
 
     def configure(self, config):
-        
+        setup_model()
         ''' Extend the resource_delete action in order to get notification of deleted resources'''
         if self.resource_delete_action is None:
             
