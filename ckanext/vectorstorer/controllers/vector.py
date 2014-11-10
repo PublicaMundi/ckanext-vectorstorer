@@ -11,32 +11,8 @@ from ckan.model.types import make_uuid
 from ckan.lib.dictization.model_dictize import resource_dictize
 _check_access = check_access
 
-from ckanext.vectorstorer.model.resource_identify import ResourceIdentify,TaskNotReady
-
 class VectorController(BaseController):
     """VectorController will be used to publish vector data at postgis and geoserver"""
-
-    def resource_identified(self):
-        
-        resource_id = request.params.get('resource_id', u'')
-        
-        return self._get_identification_result(resource_id)
-    
-    def _get_identification_result(self,resource_id):
-	
-	res_identify_query=ckan.model.Session.query(ResourceIdentify).filter(ResourceIdentify.resource_id==resource_id)
-	res_identify=res_identify_query.first()
-        
-        if res_identify:
-	    
-	    try:
-		result=res_identify.get_task_result()
-		return result
-	    
-	    except TaskNotReady:
-		abort(404, _('Task not Ready'))
-	else:
-	    abort(404, _('Task not Found'))
 	
     def publish(self):
 

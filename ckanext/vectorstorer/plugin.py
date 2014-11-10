@@ -7,9 +7,6 @@ from ckanext.vectorstorer import settings
 from ckanext.vectorstorer import resource_actions
 from pylons import config
 
-from ckanext.vectorstorer.model.resource_identify import setup as setup_model
-
-
 class VectorStorer(SingletonPlugin):
     STATE_DELETED='deleted'
     
@@ -24,7 +21,6 @@ class VectorStorer(SingletonPlugin):
     
 
     def configure(self, config):
-        setup_model()
         ''' Extend the resource_delete action in order to get notification of deleted resources'''
         if self.resource_delete_action is None:
             
@@ -69,21 +65,18 @@ class VectorStorer(SingletonPlugin):
             self.resource_update_action=new_resource_update
     
     def before_map(self, map):
-	map.connect('{action}', '/dataset/{id}/resource/{resource_id}/{action}/{operation}/',
+	map.connect('style', '/dataset/{id}/resource/{resource_id}/style/{operation}',
             controller='ckanext.vectorstorer.controllers.style:StyleController',
-            action='{action}')
-	map.connect('{action}', '/dataset/{id}/resource/{resource_id}/{action}/{operation}',
+            action='style', operation='operation')
+	map.connect('export', '/dataset/{id}/resource/{resource_id}/export/{operation}',
             controller='ckanext.vectorstorer.controllers.export:ExportController',
-            action='{action}',operation='{operation}')
-	map.connect('{action}', '/api/search_epsg',
+            action='export',operation='{operation}')
+	map.connect('search_epsg', '/api/search_epsg',
             controller='ckanext.vectorstorer.controllers.export:ExportController',
             action='search_epsg')
 	map.connect('publish', '/api/vector/publish',
             controller='ckanext.vectorstorer.controllers.vector:VectorController',
             action='publish')
-	map.connect('resource_identified', '/api/vector/resource_identified',
-	    controller='ckanext.vectorstorer.controllers.vector:VectorController',
-	    action='resource_identified')
 	return map
 
     def update_config(self, config):
@@ -100,22 +93,22 @@ class VectorStorer(SingletonPlugin):
 		#A new vector resource has been created
 		#resource_actions.create_vector_storer_task(entity)
 		resource_actions.identify_resource(entity.as_dict())
-	    elif operation==model.domain_object.DomainObjectOperation.deleted:
-		#A vectorstorer resource has been deleted
-		resource_actions.delete_vector_storer_task(entity.as_dict())
+	    #elif operation==model.domain_object.DomainObjectOperation.deleted:
+		##A vectorstorer resource has been deleted
+		#resource_actions.delete_vector_storer_task(entity.as_dict())
 	    
-	    elif operation is None:
-		#Resource Url has changed
+	    #elif operation is None:
+		##Resource Url has changed
 		
-		if entity.format.lower() in settings.SUPPORTED_DATA_FORMATS:
-		    #Vector file was updated
+		#if entity.format.lower() in settings.SUPPORTED_DATA_FORMATS:
+		    ##Vector file was updated
 		    
-		    resource_actions.update_vector_storer_task(entity)
+		    #resource_actions.update_vector_storer_task(entity)
 		    
-		else :
-		    #Resource File updated but not in supported formats
+		#else :
+		    ##Resource File updated but not in supported formats
 		 
-		    resource_actions.delete_vector_storer_task(entity.as_dict())
+		    #resource_actions.delete_vector_storer_task(entity.as_dict())
 		    
 	elif isinstance(entity, model.Package):
 	    

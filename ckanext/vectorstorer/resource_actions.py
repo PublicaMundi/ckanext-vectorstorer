@@ -10,6 +10,9 @@ import json
 import ckan
 from pylons import config
 from ckanext.vectorstorer import settings
+from ckanext.publicamundi.model.resource_identify import ResourceIdentify
+from urlparse import urljoin
+
 
 def _get_site_url():
     try:
@@ -26,14 +29,23 @@ def _get_site_user():
 
 
 def identify_resource(resource):
-    task_id = make_uuid()
-    print task_id
-    data = json.dumps(resource)
-    celery.send_task('vectorstorer.identify_resource', args=[data], task_id=task_id)
+    user_api_key =  _get_site_user()['apikey']
     
-    #Task id has to be saved in relation to the resource id
+    #for file uploads
+    if resource['url_type']:
+	res_download_url=h.url_for(controller='package',action='resource_download',id=resource['package_id'], resource_id=resource['id'],filename=resource['url'])
+	res_url=urljoin(_get_site_url(),res_download_url)
+	resource['url']=res_url
+    
+    task_id = make_uuid()
 
-
+    data = json.dumps(resource)
+    celery.send_task('vectorstorer.identify_resource', args=[data,user_api_key], task_id=task_id)
+    
+    res_identify = ResourceIdentify(task_id,resource['id'])
+    ckan.model.Session.add(res_identify)
+    
+    
 def _get_geoserver_context():
     geoserver_context = json.dumps({'geoserver_url': config['ckanext-vectorstorer.geoserver_url'],
      'geoserver_workspace': config['ckanext-vectorstorer.geoserver_workspace'],
