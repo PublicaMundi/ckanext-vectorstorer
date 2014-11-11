@@ -11,8 +11,6 @@ import ckan
 from pylons import config
 from ckanext.vectorstorer import settings
 from ckanext.publicamundi.model.resource_identify import ResourceIdentify
-from urlparse import urljoin
-
 
 def _get_site_url():
     try:
@@ -28,15 +26,14 @@ def _get_site_user():
     return user
 
 
-def identify_resource(resource):
+def identify_resource(resource_obj):
     user_api_key =  _get_site_user()['apikey']
+    res_dict = resource_dictize(resource_obj, {'model': model})
+    resource=resource_obj.as_dict()
     
-    #for file uploads
-    if resource['url_type']:
-	res_download_url=h.url_for(controller='package',action='resource_download',id=resource['package_id'], resource_id=resource['id'],filename=resource['url'])
-	res_url=urljoin(_get_site_url(),res_download_url)
-	resource['url']=res_url
+    '''With resource_dictize we get the correct resource url even if dataset is in draft state   '''
     
+    resource['url']=res_dict['url']
     task_id = make_uuid()
 
     data = json.dumps(resource)

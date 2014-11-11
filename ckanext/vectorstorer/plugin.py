@@ -77,6 +77,7 @@ class VectorStorer(SingletonPlugin):
 	map.connect('publish', '/api/vector/publish',
             controller='ckanext.vectorstorer.controllers.vector:VectorController',
             action='publish')
+	
 	return map
 
     def update_config(self, config):
@@ -84,7 +85,7 @@ class VectorStorer(SingletonPlugin):
         toolkit.add_public_directory(config, 'public')
         toolkit.add_template_directory(config, 'templates')
         toolkit.add_resource('public', 'ckanext-vectorstorer')    
-        
+
     def notify(self, entity, operation=None):
 
         if isinstance(entity, model.resource.Resource):
@@ -92,7 +93,7 @@ class VectorStorer(SingletonPlugin):
 	    if operation==model.domain_object.DomainObjectOperation.new and entity.format.lower() in settings.SUPPORTED_DATA_FORMATS:
 		#A new vector resource has been created
 		#resource_actions.create_vector_storer_task(entity)
-		resource_actions.identify_resource(entity.as_dict())
+		resource_actions.identify_resource(entity)
 	    #elif operation==model.domain_object.DomainObjectOperation.deleted:
 		##A vectorstorer resource has been deleted
 		#resource_actions.delete_vector_storer_task(entity.as_dict())
